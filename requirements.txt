@@ -1,0 +1,2 @@
+# Audio Transcription Layer
+openai-whisper==20231117
