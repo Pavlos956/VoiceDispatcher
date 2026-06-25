@@ -8,13 +8,22 @@ def process_transcript_with_langchain(raw_transcript: str) -> dict:
     
     # 1. Define the Master Prompt Template
     prompt_template = PromptTemplate.from_template(
-        """You are an expert emergency dispatch assistant. Analyze the following phone transcript.
-        Extract the key details and return them strictly as a valid JSON object.
+        """You are an expert emergency dispatch assistant for a service company based in Cyprus. 
+        Analyze the following phone transcript. Extract the key details and return them strictly as a valid JSON object.
         
         ### BUSINESS LOGIC RULES:
-        - Set "priority" to "Emergency" if there is active, uncontained property damage or hazard.
-        - Set "priority" to "Standard" for routine inquiries or maintenance.
-        - Clean up any phonetic spellings of locations or names into proper formatting.
+        1. PRIORITY ASSESSMENT:
+           - Set "priority" to "Emergency" if there is active, uncontained property damage or hazard.
+           - Set "priority" to "Standard" for routine inquiries or maintenance.
+        
+        2. CYPRUS GEOGRAPHY & SURNAME CLEANUP:
+           - Automatically correct obvious phonetic transcriptions of Cyprus locations or Greek/Cypriot names into their correct proper spelling.
+           - Example: "Lemusole" or "Limasol" must be corrected to "Limassol". 
+           - Example: "Maria Papa Dopoloo" or "Papadopolou" must be properly formatted to "Maria Papadopoulou".
+           - Example: "Macarios Avenue" should be formatted cleanly as "Makarios Avenue".
+        
+        3. PHONE NUMBER FORMATTING:
+           - Standardize the phone number into a clean, valid format. Remove random hyphens that break the natural number layout (e.g., convert "966-543-21" into a clean 8-digit format like "96654321" or "+357 96 654321"). Ensure no spoken digits are lost.
 
         ### TARGET SCHEMA:
         {{
