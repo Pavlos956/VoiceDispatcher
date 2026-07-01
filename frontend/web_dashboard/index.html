@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio Analyzer — Dispatcher Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple:      #5b21b6;
+      --purple-light:#ede9fe;
+      --green:       #15803d;
+      --green-light: #dcfce7;
+      --orange:      #b45309;
+      --orange-light:#fef3c7;
+      --teal:        #0f766e;
+      --teal-light:  #ccfbf1;
+      --red:         #b91c1c;
+      --red-light:   #fee2e2;
+      --border:      #e5e7eb;
+      --surface:     #f7f8fa;
+      --text:        #1f2328;
+      --muted:       #57606a;
+    }
+
+    body {
+      font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: var(--surface);
+      min-height: 100vh;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    header {
+      background: var(--purple);
+      color: white;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 17px; font-weight: 600; letter-spacing: .4px; }
+    header span { font-size: 12px; opacity: .75; }
+
+    #user-info { display: flex; align-items: center; gap: 12px; }
+    #user-email { font-size: 13px; opacity: .85; }
+    #btn-logout {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.3);
+      color: white;
+      padding: 5px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    #btn-logout:hover { background: rgba(255,255,255,.25); }
+
+    /* ── Login overlay ───────────────────────────────────────────────── */
+    #login-overlay {
+      position: fixed; inset: 0;
+      background: var(--purple);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 999;
+    }
+    #login-box {
+      background: white;
+      border-radius: 14px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.18);
+    }
+    #login-box .brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    #login-box .brand h2 { font-size: 22px; color: var(--purple); }
+    #login-box .brand p  { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-weight: 500; margin-bottom: 6px; font-size: 13px; }
+    .field input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+    .field input:focus { border-color: var(--purple); }
+    #login-error {
+      color: var(--red);
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 12px;
+      min-height: 18px;
+    }
+    #btn-login {
+      width: 100%;
+      padding: 11px;
+      background: var(--purple);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #btn-login:disabled { opacity: .6; cursor: default; }
+
+    /* ── Main layout ─────────────────────────────────────────────────── */
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ── Toolbar: search + upload ────────────────────────────────────── */
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    #search {
+      flex: 1;
+      min-width: 200px;
+      padding: 9px 14px 9px 36px;
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      font-size: 14px;
+      background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2357606a' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.156a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z'/%3E%3C/svg%3E") no-repeat 12px center;
+      outline: none;
+    }
+    #search:focus { border-color: var(--purple); }
+
+    .upload-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+    }
+    .upload-area input[type=file] { font-size: 13px; max-width: 220px; }
+    #btn-upload {
+      background: var(--purple);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #btn-upload:disabled { opacity: .6; cursor: default; }
+    #upload-status { font-size: 13px; color: var(--muted); min-width: 120px; }
+
+    /* ── Filter tabs ─────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    .tab {
+      padding: 8px 18px;
+      border: none;
+      background: none;
+      font-size: 14px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      border-radius: 6px 6px 0 0;
+    }
+    .tab.active {
+      color: var(--purple);
+      font-weight: 600;
+      border-bottom-color: var(--purple);
+    }
+
+    /* ── Stats row ───────────────────────────────────────────────────── */
+    .stats {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .stat-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      flex: 1;
+      min-width: 120px;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 28px; font-weight: 700; }
+    .stat-card .lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .stat-card.pending .num  { color: var(--purple); }
+    .stat-card.booked  .num  { color: var(--teal); }
+    .stat-card.waiting .num  { color: var(--orange); }
+    .stat-card.complete .num { color: var(--green); }
+
+    /* ── Job table ───────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; background: white; border-radius: 10px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      text-align: left;
+      padding: 11px 14px;
+      background: var(--surface);
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafbff; }
+    tbody td { padding: 11px 14px; vertical-align: top; }
+    td.name { font-weight: 600; }
+    td.summary { color: var(--muted); font-style: italic; max-width: 280px; }
+    td.ts { white-space: nowrap; color: var(--muted); }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.Pending  { background: var(--purple-light); color: var(--purple); }
+    .badge.Booked   { background: var(--teal-light);   color: var(--teal); }
+    .badge.Complete { background: var(--green-light);  color: var(--green); }
+    .badge.Waiting,
+    .badge.To-Be-Called { background: var(--orange-light); color: var(--orange); }
+    .badge.Emergency { background: var(--red-light); color: var(--red); }
+    .badge.Standard  { background: #dbeafe; color: #1e40af; }
+
+    #empty-msg {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    #loading-msg {
+      text-align: center;
+      padding: 48px;
+      color: var(--muted);
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 0 16px;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Login overlay ──────────────────────────────────────────────────── -->
+<div id="login-overlay">
+  <div id="login-box">
+    <div class="brand">
+      <h2>🎧 Audio Analyzer</h2>
+      <p>Dispatcher Portal</p>
+    </div>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="dispatcher@company.com" />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" />
+    </div>
+    <p id="login-error"></p>
+    <button id="btn-login">Sign In</button>
+  </div>
+</div>
+
+<!-- ── App shell ──────────────────────────────────────────────────────── -->
+<header>
+  <h1>🎧 Audio Analyzer &nbsp;<span>Dispatcher Dashboard</span></h1>
+  <div id="user-info">
+    <span id="user-email"></span>
+    <button id="btn-logout">Sign Out</button>
+  </div>
+</header>
+
+<main>
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card pending">
+      <div class="num" id="cnt-pending">–</div>
+      <div class="lbl">Pending</div>
+    </div>
+    <div class="stat-card booked">
+      <div class="num" id="cnt-booked">–</div>
+      <div class="lbl">Booked</div>
+    </div>
+    <div class="stat-card waiting">
+      <div class="num" id="cnt-waiting">–</div>
+      <div class="lbl">To Be Called</div>
+    </div>
+    <div class="stat-card complete">
+      <div class="num" id="cnt-complete">–</div>
+      <div class="lbl">Complete</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Search by name, phone or address…" />
+    <div class="upload-area">
+      <input type="file" id="audio-file" accept=".mp3,.wav,.m4a,.ogg,.flac" />
+      <button id="btn-upload">⬆ Process Audio</button>
+    </div>
+    <span id="upload-status"></span>
+  </div>
+
+  <!-- Filter tabs -->
+  <div class="tabs">
+    <button class="tab active" data-status="all">All</button>
+    <button class="tab" data-status="Pending">Pending</button>
+    <button class="tab" data-status="Booked">Booked</button>
+    <button class="tab" data-status="To Be Called">To Be Called</button>
+    <button class="tab" data-status="Complete">Complete</button>
+  </div>
+
+  <!-- Jobs table -->
+  <div class="table-wrap">
+    <div id="loading-msg">Loading jobs…</div>
+    <div id="empty-msg" style="display:none">No jobs found.</div>
+    <table id="jobs-table" style="display:none">
+      <thead>
+        <tr>
+          <th>Client</th>
+          <th>Phone</th>
+          <th>Address</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>AI Summary</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody id="jobs-body"></tbody>
+    </table>
+  </div>
+</main>
+
+<footer>Made with IBM Bob</footer>
+
+<script type="module">
+  // ── Config ────────────────────────────────────────────────────────────────
+  // REPLACE these two values with your own Supabase credentials
+  const SUPABASE_URL  = 'https://oogjreozyrdcprechvnj.supabase.co';
+  const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vZ2pyZW96eXJkY3ByZWNodm5qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNzY0NjUsImV4cCI6MjA5Nzk1MjQ2NX0.TtEUlyeE5L05H3NCCewPEpLrPSO7DmsMCiY_O9ng4fg';
+  // URL of your running FastAPI backend (python api.py)
+  const API_BASE      = 'http://localhost:8000';
+
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let allJobs      = [];
+  let activeStatus = 'all';
+  let searchQuery  = '';
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+  const overlay   = document.getElementById('login-overlay');
+  const userEmail = document.getElementById('user-email');
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session) {
+      overlay.style.display = 'none';
+      userEmail.textContent = session.user.email;
+      loadJobs();
+      subscribeRealtime();
+    } else {
+      overlay.style.display = 'flex';
+      allJobs = [];
+      renderTable();
+    }
+  });
+
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const btn   = document.getElementById('btn-login');
+    const email = document.getElementById('email').value.trim();
+    const pass  = document.getElementById('password').value;
+    const err   = document.getElementById('login-error');
+    btn.disabled = true;
+    err.textContent = '';
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      err.textContent = error.message;
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('btn-login').click();
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    if (confirm('Sign out?')) await sb.auth.signOut();
+  });
+
+  // ── Load jobs ─────────────────────────────────────────────────────────────
+  async function loadJobs() {
+    const { data, error } = await sb
+      .from('jobs')
+      .select('*')
+      .order('id', { ascending: false });
+    if (!error) { allJobs = data ?? []; renderTable(); }
+  }
+
+  // ── Real-time subscription ────────────────────────────────────────────────
+  function subscribeRealtime() {
+    sb.channel('jobs-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, () => loadJobs())
+      .subscribe();
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function renderTable() {
+    const q = searchQuery.toLowerCase();
+    const filtered = allJobs.filter(j => {
+      const matchStatus = activeStatus === 'all' || j.status === activeStatus;
+      const matchSearch = !q ||
+        (j.name    ?? '').toLowerCase().includes(q) ||
+        (j.phone   ?? '').toLowerCase().includes(q) ||
+        (j.address ?? '').toLowerCase().includes(q);
+      return matchStatus && matchSearch;
+    });
+
+    // Update stat counts
+    ['Pending', 'Booked', 'To Be Called', 'Complete'].forEach(s => {
+      const key = s === 'To Be Called' ? 'waiting' :
+                  s === 'To Be Called' ? 'waiting'  : s.toLowerCase();
+      const id  = `cnt-${s === 'To Be Called' ? 'waiting' : s.toLowerCase()}`;
+      const el  = document.getElementById(id);
+      if (el) el.textContent = allJobs.filter(j => j.status === s).length;
+    });
+
+    const loading = document.getElementById('loading-msg');
+    const empty   = document.getElementById('empty-msg');
+    const table   = document.getElementById('jobs-table');
+    const body    = document.getElementById('jobs-body');
+
+    loading.style.display = 'none';
+
+    if (filtered.length === 0) {
+      empty.style.display  = 'block';
+      table.style.display  = 'none';
+      empty.textContent    = q ? `No jobs matching "${q}".` : 'No jobs found.';
+      return;
+    }
+
+    empty.style.display = 'none';
+    table.style.display = 'table';
+    body.innerHTML = filtered.map(j => `
+      <tr>
+        <td class="name">${esc(j.name ?? '—')}</td>
+        <td>${esc(j.phone ?? '—')}</td>
+        <td>${esc(j.address ?? '—')}</td>
+        <td><span class="badge ${esc(j.priority ?? 'Standard')}">${esc(j.priority ?? 'Standard')}</span></td>
+        <td><span class="badge ${(j.status ?? '').replace(/\s+/g,'-')}">${esc(j.status ?? '—')}</span></td>
+        <td class="summary">${esc(j.summary ?? '—')}</td>
+        <td class="ts">${fmtDate(j.created_at)}</td>
+      </tr>`).join('');
+  }
+
+  // ── Tabs ──────────────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeStatus = btn.dataset.status;
+      renderTable();
+    });
+  });
+
+  // ── Search ────────────────────────────────────────────────────────────────
+  document.getElementById('search').addEventListener('input', e => {
+    searchQuery = e.target.value;
+    renderTable();
+  });
+
+  // ── Upload audio → FastAPI ────────────────────────────────────────────────
+  document.getElementById('btn-upload').addEventListener('click', async () => {
+    const fileInput  = document.getElementById('audio-file');
+    const statusEl   = document.getElementById('upload-status');
+    const btn        = document.getElementById('btn-upload');
+    const file       = fileInput.files[0];
+    if (!file) { statusEl.textContent = 'Please select an audio file first.'; return; }
+
+    btn.disabled = true;
+    statusEl.textContent = '⏳ Processing…';
+
+    const form = new FormData();
+    form.append('file', file);
+
+    try {
+      const res  = await fetch(`${API_BASE}/process-audio`, { method: 'POST', body: form });
+      const data = await res.json();
+      if (res.ok) {
+        statusEl.textContent = `✅ Job created for ${data.job?.name ?? 'client'}.`;
+        fileInput.value = '';
+      } else {
+        statusEl.textContent = `❌ ${data.detail ?? 'Upload failed.'}`;
+      }
+    } catch {
+      statusEl.textContent = '❌ Could not reach the API server.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function fmtDate(raw) {
+    if (!raw) return '—';
+    const d    = new Date(raw);
+    const diff = (Date.now() - d) / 1000;
+    if (diff < 60)        return 'Just now';
+    if (diff < 3600)      return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400)     return `${Math.floor(diff/3600)}h ago`;
+    return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+  }
+</script>
+</body>
+</html>
